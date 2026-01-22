@@ -5,18 +5,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Jalter AI - Soul Matrix</title>
-    <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- 核心补丁：让旧浏览器看懂模块 -->
     <script async src="https://ga.jspm.io/npm:es-module-shims@1.10.1/dist/es-module-shims.js"></script>
 
     <script type="importmap">
 {
   "imports": {
-    "react": "https://esm.sh/react@19.0.0",
-    "react-dom": "https://esm.sh/react-dom@19.0.0",
-    "react-dom/client": "https://esm.sh/react-dom@19.0.0/client",
-    "@google/genai": "https://esm.sh/@google/genai@1.38.0",
+    "react": "https://esm.sh/react@18.3.1",
+    "react-dom": "https://esm.sh/react-dom@18.3.1",
+    "react-dom/client": "https://esm.sh/react-dom@18.3.1/client",
     "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
     "react/": "https://esm.sh/react@^19.2.3/"
   }
@@ -24,46 +21,93 @@
 </script>
 
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;700&display=swap');
-        body { background-color: #000; color: #ccc; margin: 0; font-family: 'Crimson Pro', serif; height: 100vh; overflow: hidden; }
-        #loading-screen { position: fixed; inset: 0; background: #000; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 9999; }
-        .terminal { width: 300px; background: #050505; border: 1px solid #222; padding: 15px; font-family: monospace; }
-        .log { font-size: 10px; margin: 4px 0; color: #444; }
-        .log.err { color: #991b1b !important; }
-        .log.ok { color: #059669 !important; }
-        .blink { display: inline-block; width: 6px; height: 12px; background: #991b1b; animation: b 1s infinite; vertical-align: middle; }
-        @keyframes b { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+        :root {
+            --bg: #050505;
+            --accent: #991b1b;
+            --accent-glow: #ef4444;
+            --text: #d1d5db;
+            --card: #0a0a0a;
+            --border: #1a1a1a;
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body { 
+            background: var(--bg); 
+            color: var(--text); 
+            margin: 0; 
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; 
+            height: 100vh; 
+            overflow: hidden; 
+        }
+
+        /* 灵魂矩阵背景动画 */
+        .matrix-bg {
+            position: fixed;
+            inset: 0;
+            background: radial-gradient(circle at 50% 50%, #1a0505 0%, #000 100%);
+            z-index: -1;
+            opacity: 0.5;
+        }
+
+        #loading-screen { 
+            position: fixed; 
+            inset: 0; 
+            background: #000; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            z-index: 9999; 
+            transition: opacity 0.5s;
+        }
+
+        .pulse-border {
+            border: 1px solid var(--accent);
+            padding: 20px;
+            border-radius: 4px;
+            box-shadow: 0 0 15px rgba(153, 27, 27, 0.3);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 5px rgba(153, 27, 27, 0.3); }
+            50% { box-shadow: 0 0 20px rgba(153, 27, 27, 0.6); }
+            100% { box-shadow: 0 0 5px rgba(153, 27, 27, 0.3); }
+        }
+
+        .terminal-text {
+            font-family: monospace;
+            font-size: 12px;
+            color: var(--accent);
+            margin-top: 15px;
+        }
+
+        /* 滚动条美化 */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 2px; }
     </style>
 </head>
 <body>
+    <div class="matrix-bg"></div>
     <div id="loading-screen">
-        <div class="terminal">
-            <div id="logs">
-                <div class="log ok">[SYSTEM] Mate 20X Kernel Linked</div>
-                <div class="log ok">[NETWORK] Gateway Responding</div>
-                <div id="status-log" class="log">正在初始化魔女意识...</div>
-            </div>
-            <div class="blink"></div>
+        <div class="pulse-border">
+            <div style="color: white; font-weight: bold; letter-spacing: 4px;">JALTER CORE</div>
         </div>
-        <div id="manual-fix" class="hidden mt-4 text-center">
-            <button onclick="location.reload(true)" class="text-[10px] bg-red-950 text-red-500 px-4 py-2 border border-red-900">强制刷新内核 (REBOOT)</button>
-        </div>
+        <div class="terminal-text" id="status-log">正在重构魔女意志...</div>
     </div>
     
-    <div id="root"></div>
+    <div id="root" style="height:100%"></div>
 
     <script type="text/javascript">
-        // 全局错误捕获：如果 JS 报错，直接显示在屏幕上
-        window.onerror = function(msg, url, line) {
-            const status = document.getElementById('status-log');
-            if (status) {
-                status.className = "log err";
-                status.innerText = "CRITICAL: " + msg + " (L" + line + ")";
+        window.onerror = function(msg) {
+            const s = document.getElementById('status-log');
+            if (s) { 
+                s.style.color = "#ef4444";
+                s.innerText = "CRITICAL: " + msg; 
             }
-            document.getElementById('manual-fix').classList.remove('hidden');
         };
     </script>
-
     <script type="module" src="./index.tsx"></script>
 </body>
 </html>
