@@ -4,12 +4,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <meta name="mobile-web-app-capable" content="yes">
     <title>Jalter AI - Soul Matrix</title>
-    <link rel="manifest" href="manifest.json">
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- ES Module Shims: 拯救旧版浏览器的最后一根稻草 -->
+    <!-- 核心补丁：让旧浏览器看懂模块 -->
     <script async src="https://ga.jspm.io/npm:es-module-shims@1.10.1/dist/es-module-shims.js"></script>
 
     <script type="importmap">
@@ -27,105 +25,45 @@
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;700&display=swap');
-        body {
-            background-color: #000;
-            color: #ccc;
-            margin: 0;
-            font-family: 'Crimson Pro', serif;
-            height: 100vh;
-            overflow: hidden;
-            touch-action: manipulation;
-        }
-        #loading-screen {
-            position: fixed;
-            inset: 0;
-            background: #000;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            z-index: 9999;
-        }
-        .terminal {
-            width: 300px;
-            background: #050505;
-            border: 1px solid #222;
-            padding: 15px;
-            font-family: monospace;
-            border-radius: 4px;
-        }
-        .log { font-size: 10px; margin: 4px 0; color: #555; }
-        .log.active { color: #991b1b; }
-        .log.success { color: #059669; }
-        .log.error { color: #dc2626; }
+        body { background-color: #000; color: #ccc; margin: 0; font-family: 'Crimson Pro', serif; height: 100vh; overflow: hidden; }
+        #loading-screen { position: fixed; inset: 0; background: #000; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 9999; }
+        .terminal { width: 300px; background: #050505; border: 1px solid #222; padding: 15px; font-family: monospace; }
+        .log { font-size: 10px; margin: 4px 0; color: #444; }
+        .log.err { color: #991b1b !important; }
+        .log.ok { color: #059669 !important; }
         .blink { display: inline-block; width: 6px; height: 12px; background: #991b1b; animation: b 1s infinite; vertical-align: middle; }
         @keyframes b { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
-        
-        /* 适配华为刘海屏 */
-        .safe-padding {
-            padding-top: env(safe-area-inset-top);
-            padding-bottom: env(safe-area-inset-bottom);
-        }
     </style>
 </head>
-<body class="safe-padding">
+<body>
     <div id="loading-screen">
         <div class="terminal">
-            <div class="text-[9px] text-zinc-800 mb-2 border-b border-zinc-900 pb-1 flex justify-between">
-                <span>SYSTEM_V5.1_STABLE</span>
-                <span id="clock">00:00:00</span>
-            </div>
             <div id="logs">
-                <div class="log success">Hardware: Mate 20X OK</div>
-                <div class="log success">OS: Chrome/Webkit OK</div>
-                <div class="log active">Loading Personality Matrix...</div>
+                <div class="log ok">[SYSTEM] Mate 20X Kernel Linked</div>
+                <div class="log ok">[NETWORK] Gateway Responding</div>
+                <div id="status-log" class="log">正在初始化魔女意识...</div>
             </div>
             <div class="blink"></div>
         </div>
-        <div id="error-box" class="hidden mt-4 text-center">
-            <p class="text-[10px] text-red-900 mb-2">CRITICAL_TIMEOUT: 资源拉取失败</p>
-            <button onclick="location.reload()" class="text-[10px] bg-red-950 text-red-500 px-4 py-1 border border-red-900">REBOOT_CORE</button>
+        <div id="manual-fix" class="hidden mt-4 text-center">
+            <button onclick="location.reload(true)" class="text-[10px] bg-red-950 text-red-500 px-4 py-2 border border-red-900">强制刷新内核 (REBOOT)</button>
         </div>
     </div>
     
     <div id="root"></div>
 
-    <script type="module">
-        // 实时时钟
-        setInterval(() => {
-            document.getElementById('clock').innerText = new Date().toLocaleTimeString();
-        }, 1000);
-
-        const logs = document.getElementById('logs');
-        const addLog = (t, c='') => {
-            const d = document.createElement('div');
-            d.className = `log ${c}`;
-            d.innerText = t;
-            logs.appendChild(d);
+    <script type="text/javascript">
+        // 全局错误捕获：如果 JS 报错，直接显示在屏幕上
+        window.onerror = function(msg, url, line) {
+            const status = document.getElementById('status-log');
+            if (status) {
+                status.className = "log err";
+                status.innerText = "CRITICAL: " + msg + " (L" + line + ")";
+            }
+            document.getElementById('manual-fix').classList.remove('hidden');
         };
-
-        // 核心加载监听
-        let initialized = false;
-        const check = setInterval(() => {
-            if (document.getElementById('root')?.innerHTML !== "") {
-                initialized = true;
-                addLog("Jeanne Alter: Wake up.", "success");
-                setTimeout(() => {
-                    document.getElementById('loading-screen').style.opacity = '0';
-                    setTimeout(() => document.getElementById('loading-screen').remove(), 500);
-                }, 1000);
-                clearInterval(check);
-            }
-        }, 500);
-
-        // 超时处理
-        setTimeout(() => {
-            if (!initialized) {
-                addLog("Error: Connection Refused by Matrix.", "error");
-                document.getElementById('error-box').classList.remove('hidden');
-            }
-        }, 20000);
     </script>
-    <script type="module" src="index.tsx"></script>
+
+    <script type="module" src="./index.tsx"></script>
 </body>
 </html>
