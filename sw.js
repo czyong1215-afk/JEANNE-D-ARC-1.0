@@ -1,33 +1,17 @@
 
-const CACHE_NAME = 'jalter-ai-v4';
-const ASSETS = [
-  './',
-  './index.html',
-  './manifest.json',
-  'https://cdn.tailwindcss.com'
-];
+// 暂时简化 Service Worker，只负责基本安装，不拦截 fetch 以免造成加载死锁
+const CACHE_NAME = 'jalter-ai-v5';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS))
-  );
 });
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) => Promise.all(
-      keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))
+      keys.map(key => caches.delete(key))
     ))
   );
 });
 
-self.addEventListener('fetch', (event) => {
-  // 采用“网络优先，超时回退”策略
-  event.respondWith(
-    Promise.race([
-      fetch(event.request),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000))
-    ]).catch(() => caches.match(event.request))
-  );
-});
+// 不进行 fetch 拦截，确保实时性

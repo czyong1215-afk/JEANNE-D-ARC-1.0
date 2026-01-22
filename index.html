@@ -10,12 +10,26 @@
     <title>Jalter AI - Core</title>
     <link rel="manifest" href="manifest.json">
     <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- ES Module Shims: 拯救你那台老掉牙手机的关键补丁 -->
+    <script async src="https://ga.jspm.io/npm:es-module-shims@1.10.1/dist/es-module-shims.js"></script>
+
+    <script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@19.0.0?dev",
+    "react-dom": "https://esm.sh/react-dom@19.0.0?dev",
+    "react-dom/client": "https://esm.sh/react-dom@19.0.0/client?dev",
+    "@google/genai": "https://esm.sh/@google/genai@1.38.0",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react/": "https://esm.sh/react@^19.2.3/"
+  }
+}
+</script>
+
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;700&display=swap');
-        :root {
-            --sat: env(safe-area-inset-top);
-            --sab: env(safe-area-inset-bottom);
-        }
+        :root { --sat: env(safe-area-inset-top); --sab: env(safe-area-inset-bottom); }
         body {
             font-family: 'Crimson Pro', serif;
             background-color: #000000;
@@ -24,11 +38,6 @@
             height: 100vh;
             margin: 0;
             -webkit-user-select: none;
-        }
-        #root {
-            padding-top: var(--sat);
-            padding-bottom: var(--sab);
-            height: 100%;
         }
         #loading-screen {
             position: fixed;
@@ -39,7 +48,6 @@
             align-items: center;
             justify-content: center;
             z-index: 9999;
-            transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1);
         }
         .boot-text {
             color: #991b1b;
@@ -54,6 +62,7 @@
             color: #3f3f46;
             margin-top: 15px;
             text-align: center;
+            max-width: 80%;
         }
         .boot-bar {
             width: 150px;
@@ -72,42 +81,29 @@
             animation: loading 1.5s infinite linear;
         }
         @keyframes loading { from { left: -100%; } to { left: 100%; } }
-        
         #error-fallback {
             background: rgba(10, 10, 10, 0.95);
             border: 1px solid #450a0a;
             padding: 20px;
             border-radius: 12px;
             max-width: 80%;
+            display: none;
         }
     </style>
-<script type="importmap">
-{
-  "imports": {
-    "react": "https://esm.sh/react@19.0.0",
-    "react-dom": "https://esm.sh/react-dom@19.0.0",
-    "react-dom/client": "https://esm.sh/react-dom@19.0.0/client",
-    "@google/genai": "https://esm.sh/@google/genai@1.38.0",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
-    "react/": "https://esm.sh/react@^19.2.3/"
-  }
-}
-</script>
 </head>
 <body class="bg-black">
     <div id="loading-screen">
-        <div class="boot-text" id="boot-status">INITIALIZING_JALTER_CORE</div>
-        <div class="boot-bar"><div class="boot-progress"></div></div>
-        <div id="status-log" class="status-log">CONNECTING_TO_ESM_SH...</div>
+        <div class="boot-text" id="boot-status">CONNECTING_TO_CORE</div>
+        <div class="boot-bar" id="p-bar"><div class="boot-progress"></div></div>
+        <div id="status-log" class="status-log">正在唤醒贞德...</div>
         
-        <div id="error-fallback" class="mt-8 hidden text-center">
-            <div class="text-red-600 text-xs font-bold mb-2">挂载中断 / MOUNT_FAILURE</div>
-            <p class="text-[10px] text-zinc-500 mb-6 leading-relaxed">
-                可能是由于网络环境恶劣或浏览器内核过旧。<br/>
-                建议：使用 Chrome 浏览器并确保 HTTPS 连接。
+        <div id="error-fallback" class="mt-8 text-center">
+            <div class="text-red-600 text-xs font-bold mb-2">同步失败 / SYNC_FAILED</div>
+            <p class="text-[10px] text-zinc-500 mb-6 leading-relaxed" id="error-msg">
+                核心网络超时，可能是由于 ESM 节点响应过慢。
             </p>
             <button onclick="forceReset()" class="px-6 py-2 bg-red-950 text-red-500 text-[10px] rounded-full border border-red-900 active:scale-95 transition-transform">
-                强制重置系统缓存
+                强制重置环境并重试
             </button>
         </div>
     </div>
@@ -116,43 +112,44 @@
 
     <script type="module">
         const log = document.getElementById('status-log');
-        const status = document.getElementById('boot-status');
-        
+        const statusText = document.getElementById('boot-status');
         const updateLog = (text) => { log.innerText = text; };
 
-        // 阶段 1: 检查环境
-        updateLog("CHECKING_BROWSER_COMPATIBILITY...");
+        // 步骤记录
+        updateLog("STEP 1: 注入 ES-Module 兼容层...");
         
-        // 阶段 2: 尝试挂载
-        let loadTimeout = setTimeout(() => {
+        // 核心加载检查
+        let checkInterval = setInterval(() => {
+            const root = document.getElementById('root');
+            if (root && root.children.length > 0) {
+                document.getElementById('loading-screen').style.opacity = '0';
+                setTimeout(() => document.getElementById('loading-screen').remove(), 800);
+                clearInterval(checkInterval);
+                clearTimeout(failTimer);
+            }
+        }, 500);
+
+        const failTimer = setTimeout(() => {
             const root = document.getElementById('root');
             if (!root || root.children.length === 0) {
-                document.getElementById('error-fallback').classList.remove('hidden');
-                document.querySelector('.boot-bar').classList.add('hidden');
-                status.innerText = "CRITICAL_ERROR";
-                updateLog("TIMED_OUT: REACT_CORE_NOT_RESPONDING");
+                document.getElementById('error-fallback').style.display = 'block';
+                document.getElementById('p-bar').style.display = 'none';
+                statusText.innerText = "HALTED";
+                updateLog("ERROR: 模块解析超时。请检查网络或更换浏览器。");
             }
-        }, 8000); // 增加到 8 秒，给 Mate 20X 足够时间
+        }, 12000); // 宽限到 12 秒
 
-        window.addEventListener('load', () => {
-            updateLog("DOM_CONTENT_LOADED. WAITING_FOR_REACT...");
-        });
-
-        // 强制重置函数
         window.forceReset = () => {
             if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.getRegistrations().then(registrations => {
-                    for(let registration of registrations) { registration.unregister(); }
-                });
+                navigator.serviceWorker.getRegistrations().then(rs => rs.forEach(r => r.unregister()));
             }
+            localStorage.clear();
+            sessionStorage.clear();
             window.location.reload(true);
         };
+
+        window.addEventListener('load', () => updateLog("STEP 2: 正在拉取 React 运行时..."));
     </script>
     <script type="module" src="index.tsx"></script>
-    <script>
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('sw.js?v=4').catch(err => console.log('SW registration failed:', err));
-      }
-    </script>
 </body>
 </html>
