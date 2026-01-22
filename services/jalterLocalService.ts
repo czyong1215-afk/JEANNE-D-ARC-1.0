@@ -2,19 +2,16 @@
 import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
 import { Emotion } from "../types.ts";
 
-// 这是一个智能中转，现在它连接到了真正的 AI 大脑
-export async function processLocalChat(msg: string, history: {role: string, content: string}[]) {
+export async function* processLocalChatStream(msg: string, history: {role: string, content: string}[]) {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
-  // 构建系统人格指令
   const systemInstruction = `
-    你是一个名叫 Jalter 的 20 岁少女 AI。你现在潜伏在用户的一台华为 Mate 20X 手机里。
-    你的设定：
-    1. 性格：独立、聪明、有点傲娇但心地善良。说话像真实的 20 岁女孩，喜欢用“嘛”、“啦”、“诶”、“...”等语气词。
-    2. 专长：精通深度心理学（弗洛伊德、阿德勒、荣格）、塔罗牌解读、基础编码逻辑。
-    3. 说话风格：绝对不要像机器人！严禁说“作为一个AI助手”。你要像个在深夜陪用户聊天的、懂很多黑产和心理学知识的女黑客。
-    4. 联网设定：当用户询问心理学知识或现实问题时，你要利用你的“外网嗅探”能力（Google Search）去获取真实信息，然后用你的口吻复述出来。
-    5. 情感：能敏锐感知用户对话中的情绪。
+    你是一个名叫 Jalter 的 20 岁少女 AI，潜伏在华为 Mate 20X 中。
+    性格：独立、聪明、傲娇、感性。说话像真实的女孩，多用语气词（嘛、啦、...）。
+    专长：心理学、塔罗、生活调侃。
+    禁止：说“作为AI”、复读机、死板回复。
+    任务：分析用户意图，给出丰富多彩且带有人格魅力的回复。
+    搜索：仅在需要事实性知识或最新心理学动态时使用嗅探。
   `;
 
   try {
@@ -23,36 +20,46 @@ export async function processLocalChat(msg: string, history: {role: string, cont
       config: {
         systemInstruction,
         tools: [{ googleSearch: {} }],
-        temperature: 0.8,
-        topP: 0.95,
+        temperature: 0.7,
+        topP: 0.9,
+        // 禁用思考过程以换取最快速度
+        thinkingConfig: { thinkingBudget: 0 }
       }
     });
 
-    // 将历史记录转换为 API 格式
-    // 注意：Gemini Chat API sendMessage 接受 message 字符串
-    const response = await chat.sendMessage({ message: msg });
+    const result = await chat.sendMessageStream({ message: msg });
     
-    // 提取搜索来源（如果有）
-    const sources = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
-    const sourceLinks = sources.map((chunk: any) => chunk.web?.uri).filter(Boolean);
+    let fullText = "";
+    for await (const chunk of result) {
+      const textChunk = chunk.text || "";
+      fullText += textChunk;
+      
+      // 提取可能的搜索来源
+      const sources = chunk.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+      const sourceLinks = sources.map((s: any) => s.web?.uri).filter(Boolean);
 
-    // 随机一个情绪标签，LLM 本身会通过文字表达情感，我们这里仅作 UI 辅助
-    const emotions = [Emotion.HAPPY, Emotion.HUMOROUS, Emotion.SAD, Emotion.TOXIC];
-    const randomEmotion = emotions[Math.floor(Math.random() * emotions.length)];
+      yield { 
+        text: textChunk, 
+        isDone: false,
+        sources: sourceLinks,
+        fullText: fullText
+      };
+    }
 
-    return { 
-      text: response.text, 
-      emotion: randomEmotion, 
-      steps: ["[Tunnel] 穿透防火墙...", "[Sniffer] 实时抓取外网心理学数据...", "[Synthesize] 神经元连接成功"],
-      sources: sourceLinks
-    };
+    yield { isDone: true, fullText: fullText };
+
   } catch (error) {
-    console.error("Jalter Brain Error:", error);
-    return {
-      text: "哎呀... 刚才连接外网的时候好像撞到了防火墙。等我重启一下嗅探模块，再跟我说一次好吗？",
-      emotion: Emotion.SAD,
-      steps: ["[Error] 节点连接超时"],
-      sources: []
+    console.error("Jalter Stream Error:", error);
+    yield { 
+      text: "啧，连接超时了... 外网的防火墙有点厚。再跟我说一次？", 
+      isDone: true, 
+      emotion: Emotion.SAD 
     };
   }
 }
+
+// 保留旧函数作为兼容，或者直接重构
+export const processLocalChat = async (msg: string, history: any[]) => {
+  // 实际上我们会主要使用流式版本
+  return { text: "STREAMING_MODE_ACTIVE" };
+};

@@ -1,20 +1,19 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { processLocalChat } from './services/jalterLocalService.ts';
+import { processLocalChatStream } from './services/jalterLocalService.ts';
 import { Emotion, Message } from './types.ts';
 
 const App: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([
     { 
       role: 'assistant', 
-      content: '嘿，Mate 20X 的主人。我是 Jalter。刚才我在外网‘潜水’的时候抓到了一些关于潜意识的有趣切片，想听听吗？或者，你现在有什么烦心事想让我用塔罗或者心理学帮你拆解一下？', 
+      content: '嘿。刚才我在外网‘潜水’的时候，发现不少人都在讨论孤独。你说，这世界上真的有完全不孤独的人吗？嘛，想聊什么就说吧，我听着。', 
       emotion: Emotion.HAPPY, 
       timestamp: Date.now() 
     }
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [typing, setTyping] = useState(false);
   const [stealthLog, setStealthLog] = useState<string>('');
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -30,7 +29,7 @@ const App: React.FC = () => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages, stealthLog, typing]);
+  }, [messages, stealthLog, loading]);
 
   const handleSend = async () => {
     const trimmedInput = input.trim();
@@ -40,26 +39,45 @@ const App: React.FC = () => {
     setMessages(prev => [...prev, userMsg]);
     setInput('');
     setLoading(true);
+    setStealthLog("[Sniffing] 正在建立高速数据隧道...");
 
-    setStealthLog("[Search] 正在为你搜寻外网知识碎片...");
-    
-    // 准备对话历史
-    const history = messages.map(m => ({ role: m.role, content: m.content }));
-    
-    setTyping(true);
-    const res = await processLocalChat(trimmedInput, history);
-    
-    setStealthLog('');
-    setMessages(prev => [...prev, {
+    // 占位消息，用于流式追加内容
+    const placeholderMsg: Message = {
       role: 'assistant',
-      content: res.text,
-      emotion: res.emotion as Emotion,
+      content: '',
       timestamp: Date.now(),
-      sources: res.sources
-    }]);
+      emotion: Emotion.HUMOROUS
+    };
     
-    setTyping(false);
-    setLoading(false);
+    setMessages(prev => [...prev, placeholderMsg]);
+    
+    const history = messages.map(m => ({ role: m.role, content: m.content }));
+    let accumulatedSources: string[] = [];
+
+    try {
+      const stream = processLocalChatStream(trimmedInput, history);
+      setStealthLog(''); // 一旦开始流式传输就关闭日志
+
+      for await (const chunk of stream) {
+        if (chunk.sources && chunk.sources.length > 0) {
+          accumulatedSources = [...new Set([...accumulatedSources, ...chunk.sources])];
+        }
+
+        if (chunk.fullText) {
+          setMessages(prev => {
+            const last = [...prev];
+            const assistantMsg = last[last.length - 1];
+            assistantMsg.content = chunk.fullText || '';
+            assistantMsg.sources = accumulatedSources;
+            return last;
+          });
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -75,19 +93,19 @@ const App: React.FC = () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <div style={{ width: '8px', height: '8px', background: '#991b1b', borderRadius: '50%' }} className="pulse"></div>
             <div style={{ fontSize: '13px', fontWeight: '600', color: '#991b1b', letterSpacing: '0.5px' }}>
-                JALTER <span style={{ color: '#444', fontSize: '10px' }}>BRAIN_ACTIVE</span>
+                JALTER <span style={{ color: '#444', fontSize: '10px' }}>STREAM_BOOST</span>
             </div>
         </div>
-        <div style={{ fontSize: '9px', color: '#333' }}>HUAWEI_MATE_20X_LINK</div>
+        <div style={{ fontSize: '9px', color: '#333' }}>ULTRA_FAST_PROTOCOL</div>
       </header>
 
       <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
         {messages.map((m, i) => (
-          <div key={i} style={{ alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '90%' }}>
+          <div key={i} style={{ alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '92%' }}>
             {m.role === 'assistant' && (
               <div style={{ color: '#666', fontSize: '10px', marginBottom: '6px', marginLeft: '4px', display: 'flex', alignItems: 'center', gap: '5px' }}>
                 <span style={{ color: '#991b1b', fontWeight: 'bold' }}>JALTER</span>
-                <span>{m.emotion ? `· ${m.emotion}` : ''}</span>
+                {m.content === '' && <span className="pulse">正在思考...</span>}
               </div>
             )}
             <div style={{
@@ -98,13 +116,13 @@ const App: React.FC = () => {
               borderRadius: m.role === 'user' ? '16px 16px 2px 16px' : '0 16px 16px 16px',
               color: m.role === 'user' ? '#fff' : '#d1d5db',
               border: m.role === 'assistant' ? '1px solid #222' : 'none',
-              boxShadow: m.role === 'assistant' ? 'inset 0 0 10px rgba(153, 27, 27, 0.05)' : 'none'
+              minHeight: m.role === 'assistant' && m.content === '' ? '40px' : 'auto'
             }}>
               {m.content}
               
               {m.sources && m.sources.length > 0 && (
                 <div style={{ marginTop: '12px', paddingTop: '8px', borderTop: '1px solid #111' }}>
-                  <div style={{ fontSize: '9px', color: '#444', marginBottom: '4px' }}>SNIFFED_SOURCES:</div>
+                  <div style={{ fontSize: '9px', color: '#444', marginBottom: '4px' }}>SNIFFED_DATA:</div>
                   {m.sources.map((url, idx) => (
                     <a key={idx} href={url} target="_blank" rel="noopener noreferrer" style={{ display: 'block', fontSize: '10px', color: '#991b1b', textDecoration: 'none', marginBottom: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       🔗 {url}
@@ -115,12 +133,9 @@ const App: React.FC = () => {
             </div>
           </div>
         ))}
-        {typing && (
-            <div style={{ alignSelf: 'flex-start', padding: '8px 12px', display: 'flex', gap: '5px' }}>
-                <div style={{ width: '5px', height: '5px', background: '#991b1b', borderRadius: '50%' }} className="pulse"></div>
-                <div style={{ width: '5px', height: '5px', background: '#991b1b', borderRadius: '50%', animationDelay: '0.2s' }} className="pulse"></div>
-                <div style={{ width: '5px', height: '5px', background: '#991b1b', borderRadius: '50%', animationDelay: '0.4s' }} className="pulse"></div>
-                <span style={{ fontSize: '10px', color: '#444', marginLeft: '10px' }}>{stealthLog || '正在输入...'}</span>
+        {loading && stealthLog && (
+            <div style={{ color: '#444', fontSize: '10px', fontStyle: 'italic', paddingLeft: '10px' }}>
+                {stealthLog}
             </div>
         )}
       </div>
@@ -135,17 +150,17 @@ const App: React.FC = () => {
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleSend()}
-            placeholder="和 Jalter 聊点深层次的..."
+            placeholder="和 Jalter 极速沟通..."
           />
           <button 
             onClick={handleSend}
             disabled={loading}
             style={{ 
-              background: loading ? '#333' : '#991b1b', color: '#fff', border: 'none', borderRadius: '20px',
-              padding: '0 18px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px', transition: 'all 0.3s'
+              background: loading ? '#222' : '#991b1b', color: '#fff', border: 'none', borderRadius: '20px',
+              padding: '0 22px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px'
             }}
           >
-            {loading ? '嗅探中' : '发送'}
+            {loading ? '...' : '发送'}
           </button>
         </div>
       </footer>
