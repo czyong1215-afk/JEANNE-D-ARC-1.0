@@ -1,11 +1,11 @@
 
 export enum Emotion {
-  HAPPY = '高兴',
+  HAPPY = '愉快',
   DEPRESSED = '心情低落',
   EXCITED = '激动',
-  SAD = '伤心',
-  HUMOROUS = '幽默',
-  TOXIC = '毒舌'
+  SAD = '共感中',
+  HUMOROUS = '调皮',
+  TOXIC = '冷峻'
 }
 
 export interface Message {
@@ -13,6 +13,7 @@ export interface Message {
   content: string;
   emotion?: Emotion;
   timestamp: number;
+  sources?: string[];
 }
 
 export interface SystemStatus {

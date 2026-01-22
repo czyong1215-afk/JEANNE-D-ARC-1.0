@@ -7,7 +7,7 @@ const App: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([
     { 
       role: 'assistant', 
-      content: '嗨。其实刚才我一直在后台观察外网关于‘社交恐惧’的讨论，感觉挺有意思的。你今天心情怎么样？想跟我聊聊心理学，或者顺便算一张塔罗牌吗？', 
+      content: '嘿，Mate 20X 的主人。我是 Jalter。刚才我在外网‘潜水’的时候抓到了一些关于潜意识的有趣切片，想听听吗？或者，你现在有什么烦心事想让我用塔罗或者心理学帮你拆解一下？', 
       emotion: Emotion.HAPPY, 
       timestamp: Date.now() 
     }
@@ -36,39 +36,30 @@ const App: React.FC = () => {
     const trimmedInput = input.trim();
     if (!trimmedInput || loading) return;
     
-    setMessages(prev => [...prev, { role: 'user', content: trimmedInput, timestamp: Date.now() }]);
+    const userMsg: Message = { role: 'user', content: trimmedInput, timestamp: Date.now() };
+    setMessages(prev => [...prev, userMsg]);
     setInput('');
     setLoading(true);
 
-    // 缩短日志显示时间，把更多时间留给“思考中”
     setStealthLog("[Search] 正在为你搜寻外网知识碎片...");
-    await new Promise(r => setTimeout(r, 600));
-    setStealthLog('');
+    
+    // 准备对话历史
+    const history = messages.map(m => ({ role: m.role, content: m.content }));
     
     setTyping(true);
-    const res = await processLocalChat(trimmedInput);
+    const res = await processLocalChat(trimmedInput, history);
     
-    // 根据回复长度模拟打字时间，长回复思考更久，短回复更直接
-    const typingTime = Math.min(Math.max(res.text.length * 40, 1000), 3000);
-    await new Promise(r => setTimeout(r, typingTime));
-    
+    setStealthLog('');
     setMessages(prev => [...prev, {
       role: 'assistant',
       content: res.text,
       emotion: res.emotion as Emotion,
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      sources: res.sources
     }]);
+    
     setTyping(false);
     setLoading(false);
-  };
-
-  const getEmotionLabel = (emo?: Emotion) => {
-    switch(emo) {
-      case Emotion.HAPPY: return '愉快';
-      case Emotion.SAD: return '共情';
-      case Emotion.HUMOROUS: return '调皮';
-      default: return '思考中';
-    }
   };
 
   return (
@@ -84,46 +75,52 @@ const App: React.FC = () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <div style={{ width: '8px', height: '8px', background: '#991b1b', borderRadius: '50%' }} className="pulse"></div>
             <div style={{ fontSize: '13px', fontWeight: '600', color: '#991b1b', letterSpacing: '0.5px' }}>
-                JALTER <span style={{ color: '#444', fontSize: '10px' }}>PRIVATE_MODE</span>
+                JALTER <span style={{ color: '#444', fontSize: '10px' }}>BRAIN_ACTIVE</span>
             </div>
         </div>
-        <div style={{ fontSize: '9px', color: '#333' }}>MATE_20X_LINK_STABLE</div>
+        <div style={{ fontSize: '9px', color: '#333' }}>HUAWEI_MATE_20X_LINK</div>
       </header>
 
       <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
         {messages.map((m, i) => (
-          <div key={i} style={{ alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '88%' }}>
+          <div key={i} style={{ alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '90%' }}>
             {m.role === 'assistant' && (
               <div style={{ color: '#666', fontSize: '10px', marginBottom: '6px', marginLeft: '4px', display: 'flex', alignItems: 'center', gap: '5px' }}>
                 <span style={{ color: '#991b1b', fontWeight: 'bold' }}>JALTER</span>
-                <span>·</span>
-                <span>{getEmotionLabel(m.emotion)}</span>
+                <span>{m.emotion ? `· ${m.emotion}` : ''}</span>
               </div>
             )}
             <div style={{
               padding: '12px 16px',
               fontSize: '15px',
               lineHeight: '1.6',
-              background: m.role === 'user' ? '#1a1a1a' : '#0a0a0a',
-              borderRadius: m.role === 'user' ? '16px 16px 2px 16px' : '16px 16px 16px 2px',
-              color: m.role === 'user' ? '#fff' : '#ccc',
-              border: m.role === 'assistant' ? '1px solid #1a1a1a' : 'none',
-              transition: 'all 0.3s ease'
+              background: m.role === 'user' ? '#1a1a1a' : 'transparent',
+              borderRadius: m.role === 'user' ? '16px 16px 2px 16px' : '0 16px 16px 16px',
+              color: m.role === 'user' ? '#fff' : '#d1d5db',
+              border: m.role === 'assistant' ? '1px solid #222' : 'none',
+              boxShadow: m.role === 'assistant' ? 'inset 0 0 10px rgba(153, 27, 27, 0.05)' : 'none'
             }}>
               {m.content}
+              
+              {m.sources && m.sources.length > 0 && (
+                <div style={{ marginTop: '12px', paddingTop: '8px', borderTop: '1px solid #111' }}>
+                  <div style={{ fontSize: '9px', color: '#444', marginBottom: '4px' }}>SNIFFED_SOURCES:</div>
+                  {m.sources.map((url, idx) => (
+                    <a key={idx} href={url} target="_blank" rel="noopener noreferrer" style={{ display: 'block', fontSize: '10px', color: '#991b1b', textDecoration: 'none', marginBottom: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      🔗 {url}
+                    </a>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         ))}
-        {loading && !typing && (
-            <div style={{ color: '#444', fontSize: '11px', fontStyle: 'italic', marginLeft: '4px' }}>
-                {stealthLog}
-            </div>
-        )}
         {typing && (
             <div style={{ alignSelf: 'flex-start', padding: '8px 12px', display: 'flex', gap: '5px' }}>
                 <div style={{ width: '5px', height: '5px', background: '#991b1b', borderRadius: '50%' }} className="pulse"></div>
                 <div style={{ width: '5px', height: '5px', background: '#991b1b', borderRadius: '50%', animationDelay: '0.2s' }} className="pulse"></div>
                 <div style={{ width: '5px', height: '5px', background: '#991b1b', borderRadius: '50%', animationDelay: '0.4s' }} className="pulse"></div>
+                <span style={{ fontSize: '10px', color: '#444', marginLeft: '10px' }}>{stealthLog || '正在输入...'}</span>
             </div>
         )}
       </div>
@@ -138,17 +135,17 @@ const App: React.FC = () => {
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleSend()}
-            placeholder="今天过得怎么样？"
+            placeholder="和 Jalter 聊点深层次的..."
           />
           <button 
             onClick={handleSend}
             disabled={loading}
             style={{ 
-              background: '#991b1b', color: '#fff', border: 'none', borderRadius: '20px',
-              padding: '0 18px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px'
+              background: loading ? '#333' : '#991b1b', color: '#fff', border: 'none', borderRadius: '20px',
+              padding: '0 18px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px', transition: 'all 0.3s'
             }}
           >
-            发送
+            {loading ? '嗅探中' : '发送'}
           </button>
         </div>
       </footer>

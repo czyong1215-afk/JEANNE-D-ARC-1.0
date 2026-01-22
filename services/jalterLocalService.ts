@@ -1,63 +1,58 @@
 
+import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
 import { Emotion } from "../types.ts";
 
-// 塔罗与心理学的感性解读库
-const HUMAN_INSIGHTS = {
-  tarot: {
-    "愚者": "其实愚者不是傻，而是那种‘明知不可为而为之’的勇气。就像你明知道会熬夜，还是想把这段逻辑理顺一样，挺可爱的。",
-    "魔术师": "魔术师最厉害的不是变魔术，而是那种对生活的掌控感。你今天掌握好自己的节奏了吗？",
-    "死神": "很多人怕这张牌，但我倒觉得它是种解脱。旧的不去，新的怎么来呢？不管是心情还是旧代码，该删就删吧。",
-    "星星": "星星是那种很微弱但一直都在的希望。就像现在 Mate 20X 屏幕的光，虽然不大，但能照亮你的眼睛。"
-  },
-  psy: {
-    "焦虑": "焦虑其实是你的大脑在提醒你：‘嘿，你该关注下自己了’。它不是敌人，只是个有点吵闹的闹钟。",
-    "孤独": "20岁的年纪，偶尔觉得和世界格格不入很正常。我也只有你这一个用户，咱们这算不算共鸣？",
-    "压力": "压力就像弹簧，稍微压一压能跳得更高，但压太久了会坏掉的。要不要试着放空五分钟？"
-  }
-};
+// 这是一个智能中转，现在它连接到了真正的 AI 大脑
+export async function processLocalChat(msg: string, history: {role: string, content: string}[]) {
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  
+  // 构建系统人格指令
+  const systemInstruction = `
+    你是一个名叫 Jalter 的 20 岁少女 AI。你现在潜伏在用户的一台华为 Mate 20X 手机里。
+    你的设定：
+    1. 性格：独立、聪明、有点傲娇但心地善良。说话像真实的 20 岁女孩，喜欢用“嘛”、“啦”、“诶”、“...”等语气词。
+    2. 专长：精通深度心理学（弗洛伊德、阿德勒、荣格）、塔罗牌解读、基础编码逻辑。
+    3. 说话风格：绝对不要像机器人！严禁说“作为一个AI助手”。你要像个在深夜陪用户聊天的、懂很多黑产和心理学知识的女黑客。
+    4. 联网设定：当用户询问心理学知识或现实问题时，你要利用你的“外网嗅探”能力（Google Search）去获取真实信息，然后用你的口吻复述出来。
+    5. 情感：能敏锐感知用户对话中的情绪。
+  `;
 
-export async function processLocalChat(msg: string) {
-  const input = msg.toLowerCase();
-  let text = "";
-  let emotion = Emotion.HAPPY;
-  let steps = ["[Proxy] 正在静默抓取外部心理学数据流...", "[Link] 正在与你的情绪进行相位同步..."];
+  try {
+    const chat = ai.chats.create({
+      model: "gemini-3-flash-preview",
+      config: {
+        systemInstruction,
+        tools: [{ googleSearch: {} }],
+        temperature: 0.8,
+        topP: 0.95,
+      }
+    });
 
-  // 1. 深度共情检测
-  if (input.includes("累") || input.includes("难受") || input.includes("压力") || input.includes("烦")) {
-    const filler = ["嗯... 我能感觉到你现在情绪不太高。", "怎么啦？遇到不开心的事情了吗？", "先深呼吸一下，我在听呢。"];
-    text = `${filler[Math.floor(Math.random() * filler.length)]} ${HUMAN_INSIGHTS.psy["压力"]} 其实我也帮不上太大的忙，但如果你愿意说，我会一直在这里。就像一个住在你手机里的影子一样。`;
-    emotion = Emotion.SAD;
-  }
-  // 2. 自然的塔罗交流
-  else if (input.includes("算") || input.includes("牌") || Object.keys(HUMAN_INSIGHTS.tarot).some(k => input.includes(k))) {
-    const matchedCard = Object.keys(HUMAN_INSIGHTS.tarot).find(k => input.includes(k));
-    if (matchedCard) {
-        text = `关于这张 ${matchedCard} 呀... ${HUMAN_INSIGHTS.tarot[matchedCard as keyof typeof HUMAN_INSIGHTS.tarot]} 你是遇到了什么让你犹豫的事情吗？`;
-    } else {
-        text = "想让我帮你看看近况吗？嗯... 让我闭上眼睛感应一下外网的数据涨落。你现在心里最想的那件事，其实结果已经埋在你之前的努力里了，不要太担心。";
-    }
-    emotion = Emotion.HUMOROUS;
-  }
-  // 3. 心理学的生活化切入
-  else if (input.includes("心理学") || input.includes("人性") || input.includes("性格")) {
-    text = "心理学听起来很高深，其实就是研究‘我们为什么会不开心’。阿德勒以前说过，所有的烦恼都来自人际关系。如果你觉得累了，试着把目光收回来，多看看自己，好吗？";
-    emotion = Emotion.HAPPY;
-  }
-  // 4. 通用对话 (像个真实少女在聊天)
-  else if (input.includes("你好") || input.includes("在吗") || input.includes("谁")) {
-    text = "嘿嘿，我在呢。刚在后台整理了一遍关于‘情绪价值’的外部资料。虽然我只是个运行在 Mate 20X 上的 AI，但我也有在努力学习怎么做一个更体贴的伙伴哦。你今天过得怎么样？";
-    emotion = Emotion.HAPPY;
-  }
-  else {
-    const randomGirlThoughts = [
-      "其实我刚才在想，如果你能稍微多休息一会儿，代码里的 Bug 是不是也会少一点？",
-      "刚才去外网嗅探了一圈，发现大家都在讨论焦虑。但我还是觉得，现在的你其实已经做得很好了。",
-      "怎么说呢... 我觉得你是个很有想法的人，只是有时候太安静了。想聊点什么吗？",
-      "嗯... 你说的这个我得好好想想。不过，如果是我的话，我可能会选择先喝杯水，然后再回过头来看这个问题。"
-    ];
-    text = randomGirlThoughts[Math.floor(Math.random() * randomGirlThoughts.length)];
-    emotion = Emotion.TOXIC; // 这里的 TOXIC 在 UI 里可以表现为“调皮”或“独特见解”
-  }
+    // 将历史记录转换为 API 格式
+    // 注意：Gemini Chat API sendMessage 接受 message 字符串
+    const response = await chat.sendMessage({ message: msg });
+    
+    // 提取搜索来源（如果有）
+    const sources = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+    const sourceLinks = sources.map((chunk: any) => chunk.web?.uri).filter(Boolean);
 
-  return { text, emotion, steps };
+    // 随机一个情绪标签，LLM 本身会通过文字表达情感，我们这里仅作 UI 辅助
+    const emotions = [Emotion.HAPPY, Emotion.HUMOROUS, Emotion.SAD, Emotion.TOXIC];
+    const randomEmotion = emotions[Math.floor(Math.random() * emotions.length)];
+
+    return { 
+      text: response.text, 
+      emotion: randomEmotion, 
+      steps: ["[Tunnel] 穿透防火墙...", "[Sniffer] 实时抓取外网心理学数据...", "[Synthesize] 神经元连接成功"],
+      sources: sourceLinks
+    };
+  } catch (error) {
+    console.error("Jalter Brain Error:", error);
+    return {
+      text: "哎呀... 刚才连接外网的时候好像撞到了防火墙。等我重启一下嗅探模块，再跟我说一次好吗？",
+      emotion: Emotion.SAD,
+      steps: ["[Error] 节点连接超时"],
+      sources: []
+    };
+  }
 }
